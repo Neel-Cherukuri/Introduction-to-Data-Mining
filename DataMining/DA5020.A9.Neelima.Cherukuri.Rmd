@@ -1,0 +1,215 @@
+---
+title: "Assignment9"
+author: "Neelima Cherukuri"
+date: '2022-07-23'
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(dplyr)
+```
+
+Question 1:
+Loading the data
+```{r}
+# Download the data from the URL
+url <- "https://data.sfgov.org/api/views/rkru-6vcg/rows.csv?accessType=DOWNLOAD"
+
+download_file <- download.file(url,
+              destfile ="\\Users\\neelc\\Downloads\\Air_Traffic_Passenger_Statistics.csv" ,
+              method = "curl")
+
+# Load the file
+data <- read.csv("C:\\Users\\neelc\\Downloads\\Air_Traffic_Passenger_Statistics.csv", header=TRUE)
+str(data)
+```
+
+Question 2:
+
+```{r}
+# Add the column year and month after extracting them from the Activity.Period
+data$year <- substring(data$Activity.Period,1,4)
+
+data$month <- substring(data$Activity.Period,5,6)
+
+# Filter the month of March and extract all domestic passenger activity for each year
+graph_data <- data%>%
+  filter(month == "03" &  GEO.Summary == "Domestic")%>%
+  group_by(year, Activity.Period)%>%
+  summarize(Total_Passengers = sum(Passenger.Count))
+graph_data
+ggplot(graph_data, aes(x=year, y=Total_Passengers, group = 1 )) + 
+  geom_line() + labs(title = "Line chart for the domestic passenger activity that occured each year in March")
+```
+
+Question 3:
+
+```{r}
+# Convert the year column from a character vector to numeric
+graph_data$year <- as.numeric(graph_data$year)
+
+new_data <- graph_data %>%
+  select(year, Total_Passengers)%>%
+  filter_all(all_vars(year %in% c(2016,2017,2018)))
+
+# Moving Average
+# Calculate the 3-Year Moving Average for the following time periods : 201603, 201703 and 201803
+# tail(new_data)
+
+moving_avg_forecast <- mean(new_data$Total_Passengers)
+moving_avg_forecast
+# Create a dataframe for the forecasted value 
+moving_avg_forecast_new <- data.frame(moving_avg_forecast)
+# class(moving_avg_forecast_new)
+
+# Calculate the error by subtracting the actual and the predicted values for March 2019
+6899726	 - 6771607
+```
+#Comment:The predicted value for total passenger activity for March 2019 is 6771607 which is close enough to the actual value of 6899726 The error after subtracting the actual and predicted value is 128119. Moreover,the predicted value is slightly lower than the actual value.
+Question 4:
+
+```{r}
+# Use three year Weighted Moving Average to forecast the total passenger acticity for 2019 for the following time periods : 201603, 201703 and 201803
+# Apply the weights 3,5,7
+
+weights <- c(3,5,7)
+
+sw <- weights*(new_data$Total_Passengers)
+sw
+Final_calculation <- sum(sw)/sum(weights)
+Final_calculation
+# Create a dataframe for the forecasted value 
+weighted_moving_avg_forecast <- data.frame(Final_calculation)
+# class(weighted_moving_avg_forecast)
+
+# Calculate the error by subtracting the actual and the predicted values for March 2019
+6899726 - 6865349
+```
+#Comment:The predicted value for total passenger activity for March 2019 is 6899726 which is close to the actual value of 6865349.The error after subtracting the actual and predicted value is 34377. Moreover,the predicted value is slightly lower than the actual value.
+
+Question 5:
+
+
+```{r}
+# Exponential Smoothing Model
+# Select the data from the years 2008 to 2018
+new_data_1 <- graph_data %>%
+  select(year, Total_Passengers)%>%
+  filter_all(all_vars(year %in% c(2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018)))
+# Define alpha 
+a <- 0.7
+
+# Define the forecast column and the error column
+new_data_1$FT <- 0
+new_data_1$E <- 0
+
+# Calculate the first forecast value manually
+new_data_1$FT[1]<-new_data_1$Total_Passengers[1]
+# head(new_data_1)
+# new_data_1$FT[2]<-new_data_1$FT[1]+a*new_data_1$E[1]
+
+# calculate the error - (observed value - forecasted value)
+new_data_1$E[1]<-new_data_1$Total_Passengers[1]-new_data_1$FT[1]
+
+# Create a loop to calculate all the forecast values
+for(i in 2:nrow(new_data_1)){
+  new_data_1$FT[i]<-new_data_1$FT[i-1] + a * new_data_1$E[i-1]
+  new_data_1$E[i]<-new_data_1$Total_Passengers[i]-new_data_1$FT[i]
+}
+new_data_1
+# Calculate the prediction for March 2019
+n<-nrow(new_data_1)
+F.estimate<-new_data_1$FT[n]+a*new_data_1$E[n]
+F.estimate
+# Create a dataframe for the forecasted value 
+exponential_smoothing_model_forecast <- data.frame(F.estimate)
+# class(exponential_smoothing_model_forecast)
+```
+
+Question 6:
+
+```{r}
+# Select the data from the years 2008 to 2018
+new_data_2 <- graph_data %>%
+  select(year, Total_Passengers)%>%
+  filter_all(all_vars(year %in% c(2008,2009,2010,2011,2012,2013,2014,2015,2016,2017,2018)))
+
+# Build a simple linear regression model using the year and total passenger activity for all data from 2008 to 2018. 
+# Select the data from the years 2008 to 2018
+model <- lm(new_data_2$Total_Passengers ~ new_data_2$year)
+summary(model)
+print(model)
+# Forecast the total passenger activity for 2019 and 2020.
+F_2019 <-  --524789117  + 263538 * (2019)
+F_2019
+F_2020 <-  --524789117  + 263538 * (2020)
+F_2020
+# Create a dataframe for the forecasted value 
+linear_regression_model_forecast <- data.frame(F_2019)
+# class(linear_regression_model_forecast)
+```
+
+
+
+Question 7:
+
+```{r}
+# MSE for the exponential smoothing model (Question 5)
+
+# Define alpha 
+a <- 0.7
+
+# Define the forecast column and the error column
+new_data_1$FT <- 0
+new_data_1$E <- 0
+
+# Calculate the first forecast value manually
+new_data_1$FT[1]<-new_data_1$Total_Passengers[1]
+# head(new_data_1)
+# new_data_1$FT[2]<-new_data_1$FT[1]+a*new_data_1$E[1]
+
+# calculate the error - (observed value - forecasted value)
+new_data_1$E[2]<-new_data_1$Total_Passengers[2]-new_data_1$FT[2]
+
+# Create a loop to calculate all the forecast values
+for(i in 2:nrow(new_data_1)){
+ new_data_1$FT[i]<-new_data_1$FT[i-1] + a * new_data_1$E[i-1]
+  new_data_1$E[i]<-new_data_1$Total_Passengers[i]-new_data_1$FT[i]
+}
+new_data_1
+# Calculate the MSE for exponential smoothing model
+MSE_exponential <- mean(new_data_1$E)
+MSE_exponential
+#  MSE for the linear regression  model (Question 6)
+
+# Build the model based on the data from 2008 to 2018
+model <- lm(new_data_2$Total_Passengers ~ new_data_2$year)
+# summary(model)
+
+print(model)
+# Define the forecast column and the error column
+new_data_2$FT_value <- 0
+new_data_2$absErr <- 0
+
+# head(new_data_2)
+
+# Calculate the first forecasted value
+# new_data_2$FT_value[1]<- 131769*new_data_2$Total_Passengers[1] -262394559  
+#head(new_data_2)
+
+# Calculate the first error
+# new_data_2$absErr[1]<-abs(new_data_2$Total_Passengers - new_data_2$FT_value[1])
+# head(new_data_2)
+
+# Create a loop to calculate all the forecast values and the Error
+for(i in 1:nrow(new_data_2)){
+  new_data_2$FT_value[i]<-263538*new_data_2$Total_Passengers[i]-524789117       
+  new_data_2$absErr[i]<-abs(new_data_2$Total_Passengers - new_data_2$FT_value[i])
+}
+new_data_2
+#  Calculate the MSE for the linear regression model
+MSE_linear <- mean(new_data_2$absErr)
+MSE_linear
+```
+#Comment:THE MSE for exponential smoothing model is 299280.9 THE MSE for linear regression model is  1.504953e+12 The exponential smoothing model has a smaller MSE.

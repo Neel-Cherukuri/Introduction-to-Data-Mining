@@ -1,0 +1,159 @@
+---
+title: "Assignment10"
+author: "Neelima Cherukuri"
+date: "7/29/2022"
+output: html_document
+---
+
+Question 1:
+Confidence Interval: This kind of estimate is created by using the statistics of the observed data. It refers to the likelihood that a population parameter will fall inside a certain set of values or range of values (eg. the mean of a population). The confidence interval is created using confidence levels of typically 95 or 99 percent.
+Prediction Interval: A prediction interval, which is itself an estimation with a specific probability of an interval in which a future observation will fall, provides a range of values. Usually, these values are derived from information that has previously been collected.
+A prediction interval often forecasts the range in which a future observation will fall, whereas a confidence interval displays the expected range of values associated with some statistical feature of the data. These two intervals are so separate (eg.the mean of the population).
+
+```{r}
+library(openintro)
+library(dplyr)
+library(psych)
+data("ncbirths")
+```
+
+Question 2:
+
+The independent variable mature is seen to have a substantial positive correlation with the independent variable mage (0.64), so yes, I definitely notice some type of multicollinearity. Additionally, there is a significant positive correlation (0.71) between the variables mage and fage. Another illustration is the relationship between the variables prime and week, which appears to have a high negative correlation (-0.74).
+Weight and weeks have a positive connection of 0.67, whereas weight and lightbirthweight have a negative association of -0.72.
+Each fiedl's fage's distribution follows the normal distribution. Right-skewed distribution for mages not a regular distribution when mature the normal distribution for weeks visits that were not regularly delivered during the premie marital: A distribution that is not typical not often transmitted by habit Whitemom: Gains that are not usually distributed normal distribution of weight low birthweight: A deviation from the norm Not a typical distribution by gender
+
+
+```{r}
+str(ncbirths)
+ncbirths_dataset <- as.data.frame(ncbirths)
+class(ncbirths_dataset )
+# Convert the character columns to numeric in order to impute the mean
+new_ncbirths_dataset <- ncbirths_dataset %>% 
+  mutate_at(vars(fage,mage,weeks,visits,gained), ~as.numeric(as.character(.)))
+# str(new_ncbirths_dataset)
+
+# create my_mode function to impute mode for all the categorical variables in the dataset
+ my_mode <- function (x, na.rm) {
+  x_tab <- table(x)
+  x_mode <- names(which(x_tab == max(x_tab)))
+  if (length(x_mode) > 1) x_mode <- ">1 mode"
+  return(x_mode)
+}
+
+ # For loop for imputing the mean and the mode for the NA values in the dataset
+for (i in 1:ncol(new_ncbirths_dataset)) {
+  if (class(new_ncbirths_dataset[,i])=="numeric") {
+    new_ncbirths_dataset[is.na(new_ncbirths_dataset[,i]),i] <- mean(new_ncbirths_dataset[,i], na.rm = TRUE)
+  } else if (class(new_ncbirths_dataset[,i]) =="factor") {
+    new_ncbirths_dataset[is.na(new_ncbirths_dataset[,i]),i] <- my_mode(new_ncbirths_dataset[,i], na.rm = TRUE)
+  }
+}
+str(new_ncbirths_dataset)
+ # Convert the levels to 0 and 1 for all the factor variables with two levels(1,2)
+new_ncbirths_dataset$mature <-ifelse(new_ncbirths_dataset$mature == "younger mom", 0, 1)
+new_ncbirths_dataset$premie <-ifelse(new_ncbirths_dataset$premie == "full term", 0, 1)
+new_ncbirths_dataset$marital <-ifelse(new_ncbirths_dataset$marital == "married", 0, 1)
+new_ncbirths_dataset$lowbirthweight <-ifelse(new_ncbirths_dataset$lowbirthweight == "not low", 0, 1)
+new_ncbirths_dataset$gender <-ifelse(new_ncbirths_dataset$gender == "male", 0, 1)
+new_ncbirths_dataset$habit <-ifelse(new_ncbirths_dataset$habit == "nonsmoker", 0, 1)
+new_ncbirths_dataset$whitemom <-ifelse(new_ncbirths_dataset$whitemom == "not white", 0, 1)
+
+
+# Build a full correlation matrix
+cor(new_ncbirths_dataset[c("fage","mage","mature","weeks","premie","visits","marital", "gained", "weight","lowbirthweight","gender", "habit","whitemom")])
+# Plot the correlation matrix for better analysis
+pairs.panels(new_ncbirths_dataset[c("fage","mage","mature","weeks","premie","visits","marital", "gained", "weight","lowbirthweight","gender", "habit","whitemom")])
+
+
+```
+
+
+Question 3 :
+
+The Multiple R squared, which in this case is 64 percent (0.6409), is an indicator of how much variation in weight can be explained by the other factors (fage, mage, mature, weeks, premie, visits, marital, gained, lowbirthweight, gender, habit, and white mother), and it can be used to determine how reliable the predictions from the regression equation are.
+
+The adjusted R2 score of 0.6365 is not terrible because it shows that the independent factors in the dataset account for roughly 63 percent of the variation in the dependent variable (weight) (fage, mage, mature, weeks, premie, visits, marital, gained, lowbirthweight, gender, habit ,whitemom). The modified R2 typically provides information about how well the model fits the dataset, and a result of 0.6 still denotes a respectable match.
+The standard error demonstrates the typical deviation of the observed data from the regression line. Additionally, it is crucial for determining the 95 percent confidence interval. The standard error of this model is 0.91.
+The linear regression model's ability to fit the data more accurately than a model with no predictor variables is indicated by the F test statistic (intercept-mode only).
+Indicative of the fact that this linear regression model does offer a better fit to the data than a model with no predictor variables, the F statistic value for this model is 146.8, which is fairly high.The coefficients weeks, gained, lowbirthweight, gender, habit, and white mother all have a p-value of less than 0.05, making them all statistically significant.
+```{r}
+model_1 <- lm(weight ~ fage + mage + mature + weeks + premie + visits + marital + gained + lowbirthweight + gender + habit + whitemom, data = new_ncbirths_dataset)
+# print(model_1)
+summary(model_1)
+```
+
+
+Question 4:
+```{r}
+# Build a multiple regression model in which all coefficients are significant.
+
+model_2 <- lm(weight ~ fage + mage + mature + weeks + premie + visits + marital + gained + lowbirthweight + gender + habit + whitemom, data = new_ncbirths_dataset)
+
+# model_2 results
+summary(model_2)
+# step by step remove the coefficients with a p-value > 0.05
+# Step 1 - Remove the  coefficient premie from model_2 beacuse it has the highest p-value (0.937139).
+model_2_step1 <- lm(weight ~ fage + mage + mature + weeks + visits + marital + gained + lowbirthweight + gender + habit + whitemom, data = new_ncbirths_dataset)
+
+# model_2_step1 results
+summary(model_2_step1)
+# step by step remove the coefficients with a p-value > 0.05
+# Step 2 - From model_2_step1 remove the coefficient mature as seems to have the highest p-value(0.926838) that is greater than 0.05.
+model_2_step2 <- lm(weight ~ fage + mage + weeks+ visits + marital + gained + lowbirthweight + gender + habit + whitemom, data = new_ncbirths_dataset)
+
+# model_2_step2 results
+summary(model_2_step2)
+# step by step remove the coefficients with a p-value > 0.05
+# Step 3 - From model_2_step2 remove the coefficient visits as seems to have the highest p-value(0.74600) that is greater than 0.05.
+model_2_step3 <- lm(weight ~ fage + mage + weeks + marital + gained + lowbirthweight + gender + habit + whitemom, data = new_ncbirths_dataset)
+
+# model_2_step3 results
+summary(model_2_step3)
+# step by step remove the  coefficients with a p-value > 0.05
+# Step 4 -From model_2_step3 remove the  coefficient mage as seems to have the highest p-value(0.572290) that is greater than 0.05.
+model_2_step4 <- lm(weight ~ fage + weeks + marital + gained + lowbirthweight + gender + habit + whitemom, data = new_ncbirths_dataset)
+
+# model_2_step4 results
+summary(model_2_step4)
+# step by step remove the coefficients with a p-value > 0.05
+# Step 5 - From model_2_step4 remove the coefficient marital as seems to have the highest p-value(0.235578) that is greater than 0.05.
+model_2_step5 <- lm(weight ~ fage + weeks + gained + lowbirthweight + gender + habit + whitemom, data = new_ncbirths_dataset)
+
+# model_2_step5 results
+summary(model_2_step5)
+# Final model derived from the stepwise elimination 
+
+Final_Model <- lm(weight ~ fage + weeks + gained + lowbirthweight + gender + habit + whitemom, data = new_ncbirths_dataset)
+
+summary(Final_Model)
+
+```
+Question 5:
+The 95% confidence interval gives a reference to the probability about the parameter weight that it will fall between the following set of values (7.916266 - 8.217054 ). In other words, we can be 95% confident that the value of weight will fall btween the range of 7.916266 - 8.217054.
+
+A 95% prediction interval of [6.277374 9.855946] means that we can be 95% confident that the next new observation will fall within this range.
+```{r}
+# create a dataframe based on the given data
+df <- data.frame(40, 32, 1, 42, 0, 12, 0, 22, NA, 0, 1, 0 , 1)
+colnames(df)<-colnames(new_ncbirths_dataset)
+
+# Predict the birth weight using the final model from question 4 and the given data
+weight_forecast<- predict(Final_Model, df)
+weight_forecast
+# 8.06666
+# class(weight_forecast)
+# Derive the 95% confidence interval for the forecasted birth weight
+predict(Final_Model, df, interval = "confidence", level=0.95 )
+# Derive the 95% prediction interval for the forecasted birth weight 
+predict(Final_Model, df, interval = "prediction", level=0.95 )
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+

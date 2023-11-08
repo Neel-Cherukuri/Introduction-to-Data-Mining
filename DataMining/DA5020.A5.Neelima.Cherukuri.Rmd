@@ -1,0 +1,152 @@
+---
+title: "Assignment5"
+author: "Neelima Cherukuri"
+date: '2022-06-07'
+output: html_document
+---
+
+```{r}
+library(XML)
+library(xml2)
+library(RCurl)
+library(dplyr)
+library(stringr)
+library(tidyverse)
+library(ggplot2)
+library(tidyr)
+library(lubridate)
+library(scales)
+library(readr)
+```
+
+Question 1 :
+Load the XML data directly from the URL below into a data frame (or tibble) and display the dimensions
+of the data.
+URL: https://www.senate.gov/general/contact_information/senators_cfm.xml.
+If you get errors while loading the XML file, ensure that you use the RCurl package. Refer to this post for
+details.
+```{r}
+fileurl <- "https://www.senate.gov/general/contact_information/senators_cfm.xml"
+download.file(fileurl, destfile = "senators_cfm.xml")
+Senators <- xmlToDataFrame("senators_cfm.xml")
+dim(Senators)
+str(Senators)
+
+
+
+```
+
+#Explanation: This dataframe has 101 rows and 13 columns
+
+Question 2:
+Construct a regular expression (regex) to extract only the first, last names, and party (D,R,I) of each 
+senator; the regex should remove their middle initial and/or suffix e.g. remove Jr. III, etc. Ensure that the 
+updated names are reflected in the dataframe. 
+
+```{r}
+#Extracting names and removing middle name and initials
+
+new_first_name <- gsub('([A-z]+).*', '\\1', Senators$first_name)
+new_first_name
+
+new_last_name <- gsub('([A-z]+).*', '\\1', Senators$last_name)
+new_last_name
+
+#Replacing the updated column values
+
+Senators[["first_name"]] <- new_first_name
+colnames(Senators)[colnames(Senators)== "first_name"] <- "first_name"
+
+Senators[["last_name"]] <- new_last_name
+colnames(Senators)[colnames(Senators)== "last_name"] <- "last_name"
+
+#The data frame has been updated
+str(Senators)
+
+```
+
+Question 3:
+Create a function called senatorsByState() which takes the two letter abbreviation for a US State as its 
+input argument and displays the first name, last name and party of each senator for the selected state. 
+For example, if the user enters ‘MA’ your function should display a message that is similar to the 
+following: “The senators for MA are: Edward Markey, Democratic Party and Elizabeth Warren, 
+Democratic Party”
+```{r}
+senatorsByState <- function(x) 
+  {
+  abc <- Senators %>%
+    select(state, first_name, last_name, party) %>%
+    group_by(state) %>%
+    filter(state == (x))
+    output <- paste("The senators for",(x), "are: ")
+  name_change <- paste(abc$first_name, abc$last_name, ",", recode(abc$party,"D" = "Democratic Party", "R" = "Republician Party", "I" = "Independent Party"))
+  add <- str_c(name_change, collapse = " and ")
+  combined <- str_c(output, add)
+  return(combined)
+}
+
+#Calling the new function
+senatorsByState("IL")
+senatorsByState("CO")
+
+
+```
+
+Question 4:
+Download the attached csv file from Canvas and load it in your R environment. Perform steps to tidy the 
+data and the prepared data should be divided across two tibbles named country_name and 
+indicator_data. The country_name tibble should contain the country name and country code (ensure 
+that you remove duplicates), and the indicator_data tibble should include the country_code, year, and 
+value. Note: Tidy the data using pivot_longer(), pivot_wider() and separate(), where applicable. 
+```{r}
+a <- read.csv("C:\\Users\\neelc\\Downloads\\Ratio Of Female To Male Youth Unemployment Rate .csv", header = TRUE, skip=4, sep = ",")
+view(a)
+
+#Tidying the data
+tidy <- pivot_longer(a, c(X1960:X2020), names_to = "year", values_to = "value", values_drop_na  = TRUE) %>%
+separate(year, into = c("x","year"), sep = "X") %>%
+select(-Indicator.Name,-Indicator.Code,-X,-x)
+#Tibble one created from original dataset a
+
+country_tibble <- a %>%
+   select (Country.Name, Country.Code)
+country_tibble
+#Detecting duplicate values. 0 duplicate values
+country_tibble[!duplicated(country_tibble), ]
+view(country_tibble)
+
+#Tibble two created from the tidy dataset
+indicator_data <- tidy %>% 
+  select("Country.Code", "year", "value")
+view(indicator_data)
+
+```
+Question 5:
+Select five countries from each of the following continents: North America, Asia and Middle East. 
+Visualize their respective data from the last 20 years using a line chart; use facet_wrap to display the data 
+for each continent in its own chart. Explain your observations about the ratio of female to male youth 
+unemployment rate in the selected regions. 
+```{r}
+
+b <- read.csv("C:\\Users\\neelc\\Downloads\\Country Meta-Data.csv")
+View(b)
+
+#Creating my own tibble and inner joining with the previously made one 
+mytable <-  tibble(Country.Name= c("Ethiopia","Guinea", "Iraq", "Liberia", "Lesotho", "China", "India", "Bhutan", "Indonesia", "Sri Lanka", "Albania", "Germany", "Italy", "Spain", "Denamrk"),continent= c("Africa", "Africa", "Africa", "Africa", "Africa", "Asia", "Asia", "Asia","Asia", "Asia", "Europe", "Europe", "Europe", "Europe", "Europe")) %>%
+  inner_join(country_tibble, by= "Country.Name") %>%
+  inner_join(indicator_data, by= "Country.Code") %>%
+  filter(year == (2001:2020))
+
+View(mytable)
+
+#Plotting line grapg
+ggplot(data= mytable, aes(x= year, y= value)) +
+  geom_line() +
+  facet_wrap(.~continent,) +
+  theme(axis.text.x = element_text(angle= 90, hjust=0)) +
+  ggtitle("F:M unemployment comparison between continents") +
+  xlab("Years") + ylab("F:M Ratio")
+
+```
+
+Comment- The graph is a mix 3 different continents. It shows that For Asia the ratio remains more or less unchanged during the years. For Africa the ratio is low and has been deteriorating over the past 6-7 years. Europe also has a similar case, The unemployment ratio has been up and down and decreased over the past few years.

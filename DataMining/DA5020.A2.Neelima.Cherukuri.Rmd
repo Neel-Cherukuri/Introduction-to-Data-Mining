@@ -1,0 +1,118 @@
+---
+title: "Assignment2"
+author: "Neelima Cherukuri"
+date: "5/22/2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+```
+#the data
+```{r}
+
+?msleep
+
+```
+#Explanation: A data frame with 83 rows and 11 variables
+
+
+Question 2 : Calculate the proportion of each category of vore as a percentage and visualize the results using a bar
+chart. Comment on the results.
+
+```{r}
+#require(dplyr)
+
+a <- msleep %>%
+  count(vore) %>%
+  mutate(percentage= n/sum(n)*100)
+
+```
+#To print a
+
+```{r}
+a
+```
+#Visualizing the results using a bar chart
+
+```{r}
+ggplot (a, aes(x= reorder(vore, -percentage), y= percentage)) +
+  geom_bar (stat= "identity")
+
+```
+
+
+#Explanation: herbi - 38%, omni -24%, carni - 23%, insecti - 6%, NA- 8% same results as the above table 
+
+
+
+Question 3 : Filter the data to extract data for just omnivores. Hint: vore == ‘herbi’ and vore == ‘carni’. Calculate the mean sleep_total for that group.
+
+```{r}
+msleep %>%
+  group_by (vore)%>%
+  summarize (mean_sleeptotal= mean(sleep_total, na.rm= TRUE))%>%
+  filter (vore == "carni" | vore == "herbi")
+
+```
+#Explanation : The mean_sleeptotal for carni is 10.378 whereas for herbi , it's 9.509
+
+Question 4 : Create a scatterplot showing the relationship between bodywt and brainwt. Comment on any correlation
+that is visually apparent. Tip: if you rescale the x and y axis using a logarithmic scale, it may help you to
+interpret the visualization better e.g. you can append the following to ggplot: scale_x_log10() and
+scale_y_log10().
+
+```{r} 
+
+#Without appending
+
+ggplot (data= msleep,aes (x=bodywt, y=brainwt))+
+  geom_point(na.rm= TRUE)
+#With appending
+
+ggplot (data= msleep,aes (x=bodywt, y=brainwt))+
+  geom_point(na.rm= TRUE)+
+  scale_x_log10("bodywt")+
+  scale_y_log10("brainwt") 
+```
+
+
+#Explanation: The relationship between bodywt and brainwt lies between is positive correlation as the value is greater than zero. Increase in brainwt, increases the value in bodywt. Appending the scale values give clear visualization of the relationship. More number of observations can be seen between 0 and 0.
+
+
+
+Question 5: Calculate the Pearson coefficient of correlation in R, to evaluate the strength of the correlation between
+bodywt and brainwt. Did the results support your original assumptions from question 4?
+
+```{r}
+cor(x = msleep$bodywt, y = msleep$brainwt,  method = "pearson", use = "complete.obs")
+cor.test(x = msleep$bodywt, y = msleep$brainwt,  method = "pearson", use = "complete.obs")
+
+```
+
+#Explanation: The results of question 5 supports question 4.The correlation between bodywt and brainwt is 0.9337822.No true correlation is equal to "0".
+
+
+Question 6: Determine which mammals are outliers in terms of sleep_total. Outliers, for the sake of this question,
+are defined as values that are more than 1.5 standard deviations from the mean. Display the name and
+sleep_total of the mammals which are outliers
+```{r}
+
+mean_st <-  mean(msleep$sleep_total)
+sd_st <-  sd(msleep$sleep_total)
+z_score <-  abs((mean_st- msleep$sleep_total)/sd_st)
+
+#outliers
+
+msleep %>%
+select (name, sleep_total) %>%
+filter (z_score > 1.5)
+
+```
+
+#Explanation: The above 13 mammals are outliers in terms of sleep_total of deviation greater than 1.5

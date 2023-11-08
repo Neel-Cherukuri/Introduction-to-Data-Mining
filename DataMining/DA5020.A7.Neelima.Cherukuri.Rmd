@@ -1,0 +1,196 @@
+---
+title: "Assignment7"
+author: "Neelima Cherukuri"
+date: '2022-06-28'
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(rvest)
+```
+
+Question 1: (10 pts) Scrape the data from the webpage and extract the following fields: Country, < $1.90,  < 
+$3.20, < $5.50, Year and Continent. Prepare the data for analysis and ensure that the columns have 
+meaningful names. 
+
+```{r}
+url <- "https://en.wikipedia.org/wiki/List_of_countries_by_percentage_of_population_living_in_poverty"
+
+wiki <- read_html(url) %>% html_table(fill= NULL)
+wiki #We can see the scraped data
+poverty_table <- wiki[[2]] #This is the table of choice
+
+glimpse(poverty_table) #Initially all the data types are in character format
+
+poverty_table %>%names()
+poverty_table <- poverty_table %>% as_tibble (poverty_table) %>%
+  rename("population_under_1.90" ="< $1.90[8][1]",
+                        "population_under_3.20" = "< $3.20[6]",
+         "population_under_5.50"= "< $5.50[7]")
+poverty_table <- as.data.frame(poverty_table) #Converting to data frame
+
+#Data preparation- removing % symbol before converting to numeric
+poverty_table$population_under_1.90 <- gsub("%", "", poverty_table$population_under_1.90)
+poverty_table$population_under_3.20 <- gsub("%", "", poverty_table$population_under_3.20)  
+poverty_table$population_under_5.50 <- gsub("%", "", poverty_table$population_under_5.50)
+
+poverty_table$population_under_1.90 <- as.numeric(poverty_table$population_under_1.90) #conversion to numeric
+poverty_table$population_under_1.90 <- poverty_table$population_under_1.90/100 #conversion to percentage
+
+poverty_table$population_under_3.20 <- as.numeric(poverty_table$population_under_3.20) #conversion to numeric
+poverty_table$population_under_3.20 <- poverty_table$population_under_3.20/100 #conversion to percentage
+
+poverty_table$population_under_5.50 <- as.numeric(poverty_table$population_under_5.50) #conversion to numeric
+poverty_table$population_under_5.50 <-poverty_table$population_under_5.50/100 #conversion to percentage
+
+str(poverty_table)
+```
+
+Question 2:  Calculate the mean and the standard deviation of the percent of the population living under 
+$5.50 per day for each continent. Perform a comparative analysis (i.e. explanation) of the data from 
+each continent. 
+```{r}
+#Finding mean and standard deviation for each continent
+population_calc <- poverty_table %>%
+  group_by(Continent) %>%
+  summarise (mean(population_under_5.50, na.rm= TRUE), sd(population_under_5.50, na.rm= TRUE)) %>%
+  rename("Mean" = "mean(population_under_5.50, na.rm = TRUE)",
+         "Standard_Deviation" = "sd(population_under_5.50, na.rm = TRUE)")
+  
+population_calc
+poverty_table %>%
+  count(Continent)
+
+
+```
+
+#Summary: 
+Africa has the most number of countries and comparitively the highest percentage of people below the given poverty line in all 3 cases,and thus it has a higher mean. Congo, Democratic Republic of Africa has a very high percentage of population below $1.90, $3.20 and ultimately a high percentage under 5.50 whereas the lowest percentage in Africa is in Seychelles (others have NA values).
+
+Oceania has only 13 countries out of which data is available for only 9 of those with varying percentage of population and thus the mean and SD is high. 
+Asia and Europe have an equal number of countries but most countries in Europe are above the poverty line; it is the richest continent among all whereas Asia has mean and standard deviation comparable to Africa. The standard deviation is also very low which means the population percentage is nearly similar to the mean
+
+North and South America on the other hand are somewhat in between. Their total countries are less than Asia and Africa alone, plus the country is more developed and hence the mean value is 0.28 and 0.25 respectively with a standard deviation of 0.22 and 0.166.
+
+Question 3 :What are the 10 countries with the highest percentage of the population having an income 
+of  less  than  $5.50  per  day?  Using  a  suitable  chart,  display  the  country  name,  the  percentage  and  
+color- code by the Continent. Summarize your findings. 
+
+```{r}
+# Arranging the population_under_5.50 table in descending while getting rid of NA values
+
+desc <- poverty_table %>%
+  arrange(population_under_5.50) %>%
+  select(Country, population_under_5.50, Continent) %>%
+  na.omit()
+
+#To find the 10 countries with the highest percentage of the population having an income of less than $5.50 per day
+top10 <- tail(desc, 10) 
+top10
+
+#Histogram to display the country name, the percentage color-coded by the Continent
+ggplot(data= top10, aes(x= reorder(Country, -population_under_5.50), y= population_under_5.50, fill= Continent))+
+  geom_histogram(stat= "identity", bins  = 30) +
+  #scale_x_discrete(guide = guide_axis(n.dodge=3))+
+  coord_flip()+
+   #theme(axis.text.x = element_text(angle= 90, hjust=-0))
+  geom_text(stat= "identity", aes(label = population_under_5.50))+
+  labs(title= "10 countries with the highest percentage of the population having an income of less than $5.50 per day",
+        caption = "Chart to visulaize countries",
+        fill= "Continent") +
+   xlab("Name of Country") + ylab("Percent of population(%)")
+
+```
+#Comment:  The countries with the highest percentage of the population having an income of less than $5.50 per day include Tanzania as the 10th one with a proportion of 93.1% and Congo, Democratic Republic of the..with proportion of 97.7%. 8 out of the 10 countries excluding East Timor and Uzbekistan are African countries which again concludes, like the previous question that Africa is the continent with the majority of population below poverty line followed by Asia
+
+Question 4:
+Explore the countries with the lowest percentage of the population having an income of 
+less than $5.50 per day. What are the 5 countries with the lowest percentage, and how does the 
+results compare to the other income groups (i.e. $1.90 and $3.20)? 
+```{r}
+ #1st method- Taking the 5 countries with lowest percentage under $5.50 and comparing the same 5 countries in terms of other 2 income groups
+bottom5 <- head(desc, 5)
+bottom5
+compare <- poverty_table %>%
+  select(Country, population_under_1.90, population_under_3.20, population_under_5.50, Continent) %>%  
+filter(Country == "Switzerland" | Country == "Cyprus" |Country == "Finland" | Country == "Slovenia" | Country == "Belarus[7]")
+head(compare)
+
+# Comment- here Belarus, Cyprus, Finland, Slovenia and Switzerland are the ones having lowest percent of population under $5.50. The percent ranges from Switzerland (0.0) to Belarus(0.002). These countries all belong to Europe and since they have almost 0% population under 5.50, the population percentage among other age groups is also 0% except for finland and Cyprus in under 1.9 and under 1.9 and 3.5 respectively
+
+# 2nd method- Taking the lowest 5 countries of all age groups separately  
+under1.90 <- poverty_table %>%
+  arrange(population_under_1.90) %>%
+  head(5)
+under3.20 <- poverty_table %>%
+  arrange(population_under_3.20) %>%
+  head(5)
+under5.50 <- poverty_table %>%
+  arrange(population_under_5.50) %>%
+  head(5)
+under1.90
+under3.20
+under5.50
+
+```
+#Comment- We can see here that the lowest 5 under 5.50 are the same as method 1. For population under $1.90- Azerbaijan,Belarus,Cyprus, Czech Republic and France are the lowest 5 with 0% of population under $1.9, these are mostly europian countries whose population under $3.20 is close to 0 but as we move to 5.50, there is a slight increase with Azerbaijan having 8.2% population. Belarus and Cyprus are repeats from the previous method of under 5.50 population
+
+#For population under 3.20, Belarus is a repetition, the other 4 countries are Azerbaijan (repeat from under 1.90),Germany, Iceland,Lebanon all that have 0% population under $3.20. Azerbaijan has 8.2% population under 5.50 with Lebanon having 1.9%
+
+
+Question 5:Extract the data for any two continents of your choice. Fore each continent, visualize the 
+percent of the population living on less than $1.90, $3.20 and $5.50 using box plots. Compare and 
+contrast the results, while ensuring that you discuss the distribution, skew and any outliers that are 
+evident. 
+```{r}
+
+#Extracted continents are Asia and Europe
+asia_and_europe <- poverty_table %>%
+  select(Country, population_under_1.90, population_under_3.20, population_under_5.50, Continent) %>%
+  filter(Continent== "Asia" | Continent == "Europe")
+
+asia_and_europe %>% select(population_under_1.90, population_under_3.20, population_under_5.50, Continent) %>%
+  pivot_longer(., cols = c(population_under_1.90, population_under_3.20, population_under_5.50), names_to = "percent", values_to = "Val") %>% na.omit() %>%
+ggplot(aes(x = percent, y = Val, fill = Continent)) +
+  geom_boxplot(outlier.colour = "BLUE")+
+  scale_y_continuous(breaks = seq(0, 1, by = 0.10))+
+  labs(title= "Boxplot to visualize percent of the population living on less than $1.90, $3.20 and $5.50",
+        caption = "Distribution, skew and outliers for Asia and Europe",
+        fill= "Continent") +
+   xlab("Income categories") + ylab("Percent of population(%)")
+
+```
+#Findings:
+population_under_1.90: (For Asia)- 
+Distribution- the minimum value is 0, maximum value excluding outliers is 0.073(Maldives) and median is close to 0.02~ Skew- The median is towards minimum value so it is positively skewed
+Outliers- From the plot, there are 5 outliers: 0.621(Uzbekistan), 0.514(Turkmenistan), 0.307(East Timor), 0.227(Laos) and 0.188(Yemen)
+
+(For Europe)- 
+Distribution- the minimum value is 0, maximum value excluding outliers is 0.035 (Romania) and median is close to 0~
+Skew- The median is towards minimum value so it is positively skewed
+Outliers- From the plot, there are 3 outliers: 0.055(Serbia), 0.052(North Macedonia), 0.045(Georgia)
+
+population_under_3.20: (For Asia)- 
+Distribution- the minimum value is 0, maximum value excluding outliers is 0.0522(Yemen) and median is close to 0.11~ 
+Skew- The median is towards minimum value so it is positively skewed
+Outliers- From the plot, there are 4 outliers: 0.86(Uzbekistan), 0.77(Turkmenistan), 0.73(East Timor) and 0.58(Laos)
+
+(For Europe)- 
+Distribution- the minimum value is 0, maximum value excluding outliers is 0.082 (Albania) and median is close to 0~
+Skew- The median is towards minimum value so it is positively skewed
+Outliers- From the plot, there are 5 outliers: 0.157(Georgia), 0.100(Serbia), 0.097(North Macedonia), 0.082(Albania) and 0.070(Romania)
+
+population_under_5.50: (For Asia)-
+Distribution- the minimum value is 0.010(Japan), maximum value excluding outliers is 0.964(Uzbekistan) and median is close to 0.4~ 
+Skew- The median is towards maximum value so it is negatively skewed
+Outliers- No evident outliers are seen
+
+(For Europe)- 
+Distribution- the minimum value is 0, maximum value excluding outliers is 0.075 (Bulgaria) and median is close to 0.03~
+Skew- The median is towards minimum value so it is positively skewed
+Outliers- From the plot, there are 7 outliers: 0.429(Georgia), 0.338(Albania), 0.231(North Macedonia), 0.216(Kosovo), 0.203(Serbia), 0.156(Romania) and 0.133(Moldova)
+
+We can thus see that Uzbekistan, Turkmenistan, North Macedonia, Serbia are some of the countries that are common outliers. Moreover most of the data is positively skewed 

@@ -1,0 +1,148 @@
+---
+title: "Assignment4"
+author: "Neelima Cherukuri"
+date: '2022-06-04'
+output: html_document
+---
+
+```{r}
+#Installing libraries
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+
+
+#Loading the NYC Green Taxi Trip Records data
+tripdata_df<-read.csv("C:\\Users\\neelc\\Downloads\\2018_Green_Taxi_Trip_Data.csv")
+str(tripdata_df)
+summary(tripdata_df)
+```
+
+Question 1:
+Inspect the data and identify at least three columns/fields that should be represented as factors and
+convert their respective data types to a factor. Hint: make use of the data dictionary to understand the
+range of values for each field.
+```{r}
+
+#Converting store_and_fwd_flag (chr), RatecodeID, payment_type and VendorID (num) into factors. These are catoegorical variables and by converting them to factors, it can be used easily for statistical analysis. It also makes efficient use of memory.
+
+#Using factor()
+store_and_fwd_flag_f <- factor(tripdata_df$store_and_fwd_flag, labels= c("store and forward trip", "not a store and forward trip"))
+is.factor(store_and_fwd_flag_f)
+
+VendorID.f <- factor(tripdata_df$VendorID, labels= c("Creative Mob", "VeriFone"))
+is.factor(VendorID.f)
+levels(VendorID.f)
+
+#Using as.factor()
+RatecodeID.F <- as.factor(tripdata_df$RatecodeID)
+is.factor(RatecodeID.F)
+
+payment_type_f<- as.factor(tripdata_df$payment_type)
+is.factor(payment_type_f)
+levels(payment_type_f)
+```
+
+Question 2 :
+Analyze the data to determine what is the most common way that people: a) hail a cab and b) pay for the
+trip. Helpful fields are: trip_type and payment_type. Explain your results.
+
+
+```{r}
+# For a) Without visualization
+tripdata_df %>%
+  count(trip_type, sort = TRUE)
+#With bar graph
+ggplot(data= tripdata_df) +
+  geom_bar( aes (x= trip_type)) + scale_x_continuous(breaks= c(1,2)) + scale_y_log10()
+#Most people prefer street hail which is represented by code 1. 310,466 trips have been hailed in that manner
+
+# For b) Without visualization
+tripdata_df %>%
+  count(payment_type, sort = TRUE)
+#With bar graph
+ggplot(data= tripdata_df) +
+  geom_bar( aes (x= payment_type)) + scale_x_continuous(breaks= c(1,2,3,4,5)) + scale_y_log10()
+#Most people pay via Credit card which is represented by code 1. 176,530 trips have been paid through credit card
+
+```
+
+
+Question 3:
+
+Count the frequency of pickups for each day in February (exclude any other months pickups). Visualize the
+results using a bar chart and show the frequency on the y-axis and the date on the x-axis. Do you detect
+any patterns? What are your observations? Note: do not include the time in your calculations or the
+visualization (only use the date).
+
+```{r}
+t <- mdy_hm(tripdata_df$lpep_pickup_datetime)
+
+tripdata_df <- tripdata_df %>%
+    mutate(pick_dt_new = t)
+
+febdata<- tripdata_df %>%
+            filter(month(pick_dt_new) == 2) %>%
+            group_by(d = date(pick_dt_new)) %>%
+              summarise(count = n())
+ggplot(data = febdata, mapping = aes(x= d, y= count)) +
+      geom_bar(stat = "identity") 
+```
+ 
+#Explanation: It can be seen from the graph that maximum trips have been on dates 2nd, 3rd, 8th and 9th.
+
+Question 4 :
+
+Create a function called HourOfDay() that takes one argument which is a textual representation of a
+timestamp in the format ‘YYYY-MM-DD HH:MM:SS’ and uses a regular expression to extract the hour
+(or you can use the lubridate package to extract the hour). For example, the function should take a
+timestamp in the following format: ‘2020-02-01 11:10:25’ and return ‘11’.
+
+
+```{r}
+#Creating function
+HourOfDay <- function(hour_text)
+{
+  output <- lubridate::hour(hour_text)
+  return(output)
+}
+
+#Applying function
+HourOfDay("2020-02-01 11:10:25")
+as.Date("2018-01-01 00:18:00 EST")
+
+# One can try writing multiple dates with yyyy-hh-mm hh:mm:ss format and the created function will return the extracted hour
+```
+
+Question 5:
+
+In a new R chunk, apply the function HourOfDay() using each value in the lpep_pickup_datetime column
+and save the results in a new column called lpep_pickup_hour. Hint: you can use the mutate function in
+dplyr to apply your function to each row in the dataframe.
+
+```{r}
+tripdata_df <- tripdata_df %>%
+                    mutate(lpep_pickup_datetime = parse_date_time(tripdata_df$lpep_pickup_datetime,"mdy HM"))
+  
+  tripdata_df$lpep_pickup_hour <- HourOfDay(tripdata_df$lpep_pickup_datetime)
+```
+
+Question 6:
+
+Report the median trip distance grouped by the lpep_pickup_hour. Visualize the results and explain any
+patterns you observed based on the hour of day
+
+```{r}
+#Using mutate to extract hour from the pick up datetime and then calculating trip duration.
+df <- tripdata_df %>%
+            group_by(lpep_pickup_hour) %>%
+            summarise(freqe = median(trip_distance))
+
+
+  ggplot(df, mapping = aes(x= lpep_pickup_hour, y = freqe)) +
+    geom_bar(stat = "identity") +
+    labs(title = "Frequency by payment type", x= "Payment type", y= "Frequency")
+```
+
+
+# Explanation- The maximum median trip duration is for pick ups that occur at 5am. This would either mean that the duration increases for rides starting at 6 am due to an increased amount of traffic as those are early morning office hours. It can also be due to people travelling early in the morning to reach a destination that is farther off. 

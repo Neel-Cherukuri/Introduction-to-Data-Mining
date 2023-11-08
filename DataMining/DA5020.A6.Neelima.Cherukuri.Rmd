@@ -1,0 +1,164 @@
+---
+title: "Assignment6"
+author: "Neelima Cherukuri"
+date: "6/27/2022"
+output: html_document
+---
+
+```{r}
+library(RSQLite)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(plyr)
+```
+
+
+```{r}
+db <- dbConnect(SQLite(), dbname= "/Users/harshavardhanreddymogulla/Downloads/imdb.db")
+dbListTables(db)
+```
+
+#Loading imdb.db in R console
+sqlite> .open "C:/Users/neelc/Downloads/imdb.db" 
+
+sqlite> .tables
+
+#1 table found 
+
+movie_info 
+
+sqlite> select * from movie_info;
+
+sqlite> .mode column
+
+sqlite> .headers on
+
+sqlite> select * from movie_info;
+
+#Q1 Create a table named director_info using SQLite; the columns are: Director_ID, and Director_Name. The Director_ID should be the primary key. 
+
+sqlite DROP TABLE director_info;
+
+sqlite> CREATE TABLE director_info (Director_ID INT PRIMARY KEY, Director_Name TEXT NOT NULL);
+
+sqlite> .tables
+
+#new table created
+director_info  movie_info  
+
+# Q2- Import the entire data from the CSV file into the director_info table using the SQLite .importcommand (see helpful resources below). Verify that your data was imported correctly. 
+sqlite .separator ','
+sqlite> .mode csv director_info
+sqlite> .import /Users/maitrishah/Downloads/directors.csv --skip 1 director_info
+sqlite> select * from director_info ORDER BY Director_ID;
+
+```{r}
+#Q2
+#1. Count the number of rows in the movie_info and director_info tables. 
+dbGetQuery(db, "SELECT count(*) from director_info")  #Returns 548, therefore number of rows in table director_info is equal to 548
+dbGetQuery(db, "SELECT count(*) from movie_info")  #Returns 1000, therefore number of rows in table movie_info is equal
+```
+
+```{r}
+#Q2
+#2. How many movies were released between 2010 and 2020 (inclusive)? Visualize the results. 
+release <- dbGetQuery(db, "SELECT * FROM movie_info
+           WHERE Release_Year >= 2010 and Release_Year <= 2020")
+#248 movies were released between 2010 and 2020 (inclusive)
+
+# Visualizing the results.
+ggplot(data= release, aes(x= Release_Year, y= ..count.., fill= Release_Year)) +
+  geom_bar()+
+  geom_text(stat= "count", aes(label = ..count..))+
+   labs(title= "Movies released between 2010 and 2020 (inclusive)",
+        caption = "Chart to visulaize movie count",
+        fill= "Year of Release") +
+   xlab("Year") + ylab("No. of movies")
+  
+#Year 2014 has the most released movies (32) followed by 2013 and 2016 (28 each) while the lease number of movies were released in the year 2020 (6)
+```
+
+
+```{r}
+#Q2
+#3 What is the minimum, average and maximum ratings for “Action” movies.  Ensure that you query the genre using wild cards. 
+action <- dbGetQuery(db, "SELECT * from movie_info WHERE Genre LIKE '%Action%'") #Using wilcard LIKE
+rating <- dbGetQuery(db, "SELECT min(IMDB_Rating) as Min_rating, avg(IMDB_Rating) as Avg_rating, max(IMDB_Rating) as Max_rating from movie_info WHERE Genre LIKE '%Action%'")
+
+#The minimum rating for Action movies is 7.6 , maximum is 9 with an average rating of ~7.95
+```
+
+
+```{r}
+#Q2.
+#4 What are the 25 highest-grossing movies within the dataset? Display the title, genre and gross.
+
+highest <- dbGetQuery(db, "Select Series_Title, Genre, Gross from movie_info WHERE Gross != 'NA' ORDER BY Gross") #Getting list of movies after removing NA values in the gross column and arranging it in ascending order
+
+tail(highest, 25) #Getting the 25 highest grossing movies
+#Star Wars: Episode VII - The Force Awakens is the top-most grossing movie of Genre Action, Adventure, Sci-Fi and earning a gross amount of $936662225. The lowest among the top 25 is Joker of Genre Crime, Drama, Thriller with an earning of $335451311
+```
+
+
+
+
+```{r}
+#Q2.5 Which directors have the highest-grossing movies. Display the director name and the total gross. Ensure that you join the necessary tables. Visualize the results using a Bar chart. 
+ #Joining the director_info and movie_info
+Join_Table <- dbGetQuery(db, "Select di.Director_Name, mo.Gross from movie_info mo
+                 join director_info di
+                 on di.Director_ID= mo.Director_ID
+                 where Gross != 'NA'
+                 order by Gross")
+head(Join_Table)
+
+#using library dplyr to calculate total gross for each director
+Calc_Gross <- ddply(Join_Table,"Director_Name",numcolwise(sum)) %>% 
+  arrange(desc(Gross))
+
+colnames(Calc_Gross)[2] <- "Total_Gross"  #Changing column name 2 to Total Gross
+Top_Gross <- head(Calc_Gross, 25) #Top 25 directors
+Top_Gross
+
+# Visualizing the results using a Bar chart
+ggplot(data= Top_Gross, aes(x= reorder(Director_Name, -Total_Gross), y= Total_Gross)) +
+  geom_histogram(stat= "identity") +
+  theme(axis.text.x = element_text(angle= 90, hjust=0))+
+   labs(title= "Top 25 directors",
+        subtitle= "Directors with highest total gross",
+        caption = "Chart to visulaize the top 25 directors") +
+   xlab("Director names") + ylab("Total Gross($)")
+
+#The director with the highest gross is Steven Spielberg with a total gross of $2478133165 while the lowest among the top 25 is Gareth Edwards with a total gross of $532177324
+```
+
+
+
+```{r}
+#Q2.6  Create a function called verifyDirector() that takes a director name as its argument, and queries the database to check if the director exists. Your function should display a message to notify the user if the director was found or not. 
+
+verifyDirector <- function(x)
+{
+input <- dbSendQuery(db, "SELECT * FROM director_info WHERE Director_Name = :x")
+dbBind(input, params = list(x = x))
+output <- dbFetch(input)
+if (nrow(output) < 1)
+{
+print(paste("Oops! Director not found, please check again"))
+}
+else 
+{
+dbClearResult(input, output)   
+combined <- str_c(output$Director_Name, paste(" -Bingo, the director you entered is present in the dataset"))
+return(combined)
+dbClearResult(combined)
+}}
+
+#To verify the created function
+verifyDirector('Aamir Khan')
+verifyDirector('Neelima Cherukuri')
+```
+
+
+

@@ -1,0 +1,193 @@
+---
+title: "Assignment 11"
+output:
+  html_document:
+    df_print: paged
+---
+```{r}
+#Inserting necessary libraries
+library(tidyverse)
+library(dplyr)
+```
+
+Question 1 — (5 points) Load the diabetes dataset “diabetes.csv”, inspect the data and gather any relevant summary statistics. 
+```{r}
+diabetes.dataset <- read.csv("~/Downloads/diabetes-1.csv", header= TRUE)
+str(diabetes.dataset)
+summary(diabetes.dataset)
+```
+**We can see min and max of all the variables, minimum is 0 for all of them. All the explanatory variables are non normalized but the response variable is in 0 and 1. All the columns are integers.**
+
+
+Question 2 — (5 points) Normalize the explanatory variables using min-max normalization.  
+
+```{r}
+#Making function for minmax normalization
+
+minmax <- function(x)
+{return((x - min(x)) / (max(x) - min(x)))
+}
+
+#Applying function
+diabetes.dataset$Pregnancies <- minmax(diabetes.dataset$Pregnancies)
+diabetes.dataset$Glucose <- minmax(diabetes.dataset$Glucose)
+diabetes.dataset$BloodPressure <- minmax(diabetes.dataset$BloodPressure)
+diabetes.dataset$SkinThickness <- minmax(diabetes.dataset$SkinThickness)
+diabetes.dataset$Insulin <- minmax(diabetes.dataset$Insulin)
+diabetes.dataset$BMI <- minmax(diabetes.dataset$BMI)
+diabetes.dataset$DiabetesPedigreeFunction <- minmax(diabetes.dataset$DiabetesPedigreeFunction)
+diabetes.dataset$Age <- minmax(diabetes.dataset$Age)
+head(diabetes.dataset)
+
+#Rounding upto 4 digits for better visualization
+diabetes.dataset <- diabetes.dataset %>% 
+  mutate(across(where(is.numeric), ~ round(.,4), nsmall= 4))
+```
+
+Question 3: Split the data into a training set and a test set i.e. perform an 80/20 split; 80% of the data should be designated as the training data and 20% as the test data. 
+```{r}
+diabetes.dataset # original data frame
+
+#Training and testing dataset with 80:20 ratio
+    train.data <-sample_frac(diabetes.dataset, 0.8)
+    sid<-as.numeric(rownames(train.data))
+    test.data <-diabetes.dataset[-sid,]
+```
+    
+Question 4: Create a function called knn_predict(). The function should accept the following as input: the training set, the test set and the value of k. For example knn_predict(train.data, test.data, k). 
+
+```{r}
+# Creating a function to measure distance
+distance <- function(a,b)
+{
+  d <- 0
+  for (i in 1:length(a)){
+    d <- d+ (a[i]- b[i])^2}
+  dist <- sqrt(d)
+  dist <- dist[[1]]
+}
+
+#Testing the function
+a <- train.data[1,c(1:8)]
+b <- test.data[1,c(1:8)]
+m <- nrow(train.data)
+d <- numeric(m)
+abc <- distance(a,b)
+
+# Creating a function to get neighbors
+neighbors <- function(train.data, test.data)
+{ m <- nrow(train.data)
+ds <- numeric(m)
+for (i in 1:m){
+  x <- train.data[i,c(1:8)]
+  y <- test.data[c(1:8)]
+  ds[i] <- distance(x,y)
+}
+neighbors <- ds
+}
+
+#Testing neighbors function
+n <- neighbors(train.data, test.data[1, ])
+
+# Creating a function to find closest neighbors
+k.closest <- function(neighbors, k)
+{
+  ordered.n <- order(unlist(neighbors))
+  k.closest <- ordered.n[1:k]
+}
+
+f <- k.closest(n, 4)
+f
+
+#Creating function foe calculating mode
+
+Mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+#Testing Mode function
+Mode(train.data$Outcome)
+train.data$Outcome[f]  
+Mode(train.data$Outcome[f])
+
+
+#The final knn_predict function and looping it for the dataset
+knn_predict <- function(train.data, test.data, k)
+{
+result <- numeric(nrow(test.data))
+#For the loop
+for (i in 1:nrow(test.data))
+  {
+t <- test.data[i, ]  #T
+nb <- neighbors(train.data, t)
+f <- k.closest(nb, k)
+# Finding the mode
+m <- Mode(train.data$Outcome[f])
+result[i] <- m
+}
+return(result)
+}
+```
+
+Question 5 — (10 points) Demonstrate that the knn_predict() function works and use it to make predictions for the test set. You can determine a suitable value of k for your demonstration. After which, analyze the results that were returned from the function using a confusion matrix. Explain the results. Note: refer to the ‘Useful Resources’ section for more information on building a confusion matrix in R. 
+
+```{r}
+k <- 25 #Taking k25 as it is the square root of no of rows in training data
+
+#Making prediction for test set
+k25 <- knn_predict(train.data, test.data, k)
+k25
+
+#Confusion matrix
+cm <- table(k25, test.data$Outcome)
+cm
+accuracy.25 <- (90+32)/(90+32+23+9)*100
+accuracy.25
+```
+#Since 25 is the sqrt of the number of rows in the training dataset, I've chosen that value for k. The confusion matrix is based on the projected dataset k25. When accuracy is calculated using the formula (True Positive+True Negative)/(True Positive+True Negative+ False Positive+ False Negative), 79 percent accuracy is returned, meaning 79 times out of 100 the forecast will be accurate. The aforementioned matrix can be understood as, The algorithm also projected that 85 persons out of 154 have an outocme "0," indicating they do not have diabetes.
+
+Question 6 — (+5 bonus points) Repeat question 5 and perform an experiment using different values of k. Ensure that you try at least 5 different values of k and display the confusion matrix from each attempt. Which value of k produced the most accurate predictions? 
+```{r}
+k.1 <- 5
+k1.pred <- knn_predict(train.data, test.data, k.1)
+k1.pred
+cm.1 <- table(k1.pred, test.data$Outcome)
+cm.1
+accuracy.k1 <- (85+36)/(85+36+14+19)*100
+accuracy.k1
+
+k.2 <- 20
+k2.pred <- knn_predict(train.data, test.data, k.2)
+k2.pred
+cm.2 <- table(k2.pred, test.data$Outcome)
+cm.2
+accuracy.k2 <- (92+35)/(92+35+20+7)*100
+accuracy.k2
+
+k.3 <- 40
+k3.pred <- knn_predict(train.data, test.data, k.3)
+k3.pred
+cm.3 <- table(k3.pred, test.data$Outcome)
+cm.3
+accuracy.k3 <- (94+25)/(94+25+30+5)*100
+accuracy.k3
+
+
+k.4 <- 30
+k4.pred <- knn_predict(train.data, test.data, k.4)
+k4.pred
+cm.4 <- table(k4.pred, test.data$Outcome)
+cm.4
+accuracy.k4 <- (91+32)/(91+32+23+8)*100
+accuracy.k4
+
+k.5 <- 35
+k5.pred <- knn_predict(train.data, test.data, k.5)
+k5.pred
+cm.5 <- table(k5.pred, test.data$Outcome)
+cm.5
+accuracy.k5 <- (94+29)/(94+29+26+5)*100
+accuracy.k5
+```
+***The k values used are 5, 20, 30, 40 and 35. The most accurate result is seen for k= 20 with an 82.46% accuracy. Least accurate is with k=40 with 77% accuracy as that is a very big value ***

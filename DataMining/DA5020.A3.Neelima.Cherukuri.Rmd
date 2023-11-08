@@ -1,0 +1,190 @@
+---
+title: "Assignment 3"
+author: "Neelima Cherukuri"
+date: '2022-05-29'
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(scales)
+library(dplyr)
+```
+
+Question 2 : 
+Load the NYC Green Taxi Trip Records data into a data frame called tripdata_df. Inspect the data to 
+identify its dimensions and the frequency of missing values. Helpful functions: dim(), glimpse() and 
+summary(). Tip: it is also good practice to inspect the data type for each field/column to determine if the 
+data was imported correctly. 
+
+```{r}
+#Data
+tripdata_df <- read.csv("C:\\Users\\neelc\\Downloads\\2018_Green_Taxi_Trip_Data.csv")
+dim(tripdata_df)
+glimpse(tripdata_df)
+summary(tripdata_df)
+```
+
+
+```{r}
+#Missing values
+tripdata_df$NA_frequency <- rowSums(apply (is.na (tripdata_df), 2, as.numeric))
+tripdata_df$ehail_fee
+```
+
+
+# Explanation:
+#To inspect the data, we used dim, glimpse and summary functions to learn about the data.
+#Used is.na to find NA value frequency of the tripdata_df 
+#Entire column of ehail_fee has missing values
+
+
+
+Question 3 : 
+Explore the data to determine if there are any inconsistent or invalid data; for example, examine the dates 
+within the dataset to see if they align with your expectations. Identify at least Three (3) things that stand 
+out to you and remember that this is based on your observations about the data, so it's important to 
+demonstrate what you found. (5pts) 
+ 
+Inspect the data and identify at least three columns/fields that should be represented as factors and 
+convert their respective data types to a factor. Hint: make use of the data dictionary to understand the 
+range of values for each field. (5pts) 
+
+```{r}
+#3-I
+a <- tripdata_df %>%
+  count(DOLocationID, sort= TRUE)
+head(a)
+```
+
+```{r}
+#3-II
+b <- tripdata_df %>%
+  count(PULocationID, sort= TRUE)
+head(b)
+```
+
+
+```{r}
+#3-III
+summary(tripdata_df$tip_amount)
+ggplot (tripdata_df, aes(x= fare_amount, y= tip_amount)) +
+  geom_point()
+```
+
+#Explanation:
+
+#Even though the data is given for Feb 2020, you can find observations for March 2020 by sorting the data in excel sheets.
+#The other observation using ggplot done between the fare_amount and tip_amount, the relation between them is unusual.
+
+
+Question 4: 
+Create a histogram, showing the trip_distance. Is the data skewed? Explain what you observed using 1-2 
+sentences. Note: you may need to rescale the y-axis using a log scale to improve the visualization. 
+Remember that you can alter the data if needed
+
+```{r}
+ggplot(tripdata_df) +
+  geom_histogram (mapping = aes(x = trip_distance), bins=30,)
+
+```
+
+
+```{r}
+ggplot(tripdata_df) +
+  geom_histogram (mapping = aes(x = trip_distance), bins=30) +
+  geom_vline(aes(xintercept = mean(trip_distance),colour = "cyl"), linetype = "solid", lwd = 1) +
+  scale_y_log10()
+```
+
+#Answer:
+#If you take of xlim value, the graph will take default value and does not show warning messages.
+#As you can see in the image above, the histogram is skewed right. The data has a lower bound in this case. The mean line also shows that the majority of the trips are within 0-5 miles. This could imply that people only travel modest distances on a regular basis. 
+
+
+
+Question 5:
+Analyze the tip_amount and trip_distance variables to identify any outliers. You can assume the 
+outliers are 3 standard deviations from the mean. Comment on the outliers that were detected; after 
+which, remove the outlier tip_amount from the data 
+
+```{r}
+#Calculate mean, sd and z score
+mean_df <- mean(tripdata_df$tip_amount)
+sd_df <- sd (tripdata_df$tip_amount)
+z_df <- abs((mean_df- tripdata_df$tip_amount)/ sd_df)
+#Outliers are 3 z- scores away from either side of the mean
+outliers <- tripdata_df[which(z_df >3),]
+summary(outliers$tip_amount)
+
+#The below code removes outliers
+abc <- tripdata_df[-which(z_df >3),]
+dim (abc)
+summary (abc$tip_amount)
+```
+
+#Explanation:
+#BEfore removing the outliers , the maximum value is 295 whereas the minimum value is 6.680 in outliers.
+#After removing the outliers has both negative and positive values as seen. Maximum outlier value is 6.6600 whereas the minimum outlier value is -2.7200.
+
+
+
+
+Question:6 
+Filter the data from question 4 above, and create a suitable visualization to show the frequency of trips by 
+payment_type (e.g. credit card, cash, etc). Ensure that your visualization(s) has a title and label both the 
+x and y axis. 
+ 
+
+
+
+```{r}
+abc <- abc %>%
+  mutate (payment_type_label = fct_recode(factor(payment_type), "Credit card"="1",
+                                  "Cash"="2", 
+                                   "No charge"="3",
+                                   "Dispute"="4" ,
+                                   "Unknown"= "5"))
+abc %>%
+count(payment_type_label)
+ggplot(data= abc) + 
+  geom_bar(aes (x= payment_type_label, fill= payment_type_label))+
+  ggtitle("Frequency of trips by payment type") +
+  xlab("Payment method") + ylab("Number of trips") 
+```
+
+#Explanation:
+#This graph's data frame is the one without outliers (abc). The histogram was created to show the relationship between payment method and number of trips. Credit cards (172788 trips) and cash are the most common payment methods (138849 trips). Almost the same amount of trips have been paid for using these two methods. The graph illustrates that there are just a few (1767) travels with no fee. A significant amount of payment type data, accounting for 80888 trips, is missing.
+
+
+Question 7:
+
+State at least two methods/techniques that can be used to handle missing data. Which approach would you 
+recommend, is suitable, to handle missing values in this dataset? How would you do this in R and provide 
+examples on Taxi data. 
+
+Answer : 
+
+1.  omit and na. exclude: returns the object with observations removed if they contain any missing values; differences between omitting and excluding NAs can be seen in some prediction and residual functions.
+
+2. pass: returns the object unchanged.
+
+3. fail: returns the object only if it contains no missing values.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
